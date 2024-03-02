@@ -3,6 +3,7 @@ SELECT * FROM EMPLOYEES;
 SELECT * FROM DEPARTMENTS;
 SELECT * FROM REGIONS;
 SELECT * FROM LOCATIONS;
+SELECT * FROM JOB_HISTORY;
 SELECT EXTRACT(YEAR FROM HIRE_DATE) year FROM EMPLOYEES;
 
 --Pivot para encontrar el salario por años de los empleados que se encuentran entre los departamentos 50 y 100
@@ -221,3 +222,64 @@ SELECT e1.EMPLOYEE_ID, NVL(e1.MANAGER_ID, e1.EMPLOYEE_ID) MANAGER FROM EMPLOYEES
 --Mostrar de los empleados que tienen historia de trabajo si han cambiado o no
 --de departamento, en caso de que el departamento siga siendo el mismo
 --mostrar null, en caso contrario el departamento anterior.
+
+SELECT e.employee_id, e.first_name, NULLIF(jh.department_id, e.department_id)
+depto_anterior FROM employees e join job_history jh on jh.employee_id = e.employee_id;
+
+--Mostrar el código, nombre de los empleados y el nombre del jefe del
+--departamento en el que trabajan, en caso que sean ellos mismo mostrar null.
+
+SELECT e1.EMPLOYEE_ID, e1.FIRST_NAME, NULLIF(e2.EMPLOYEE_ID, e1.MANAGER_ID)  FROM EMPLOYEES e1
+        JOIN EMPLOYEES e2 ON e2.MANAGER_ID = e1.EMPLOYEE_ID;
+
+--Listar el código, nombre de los empleados y su información de contacto (el
+--email, en caso de no tener email su número telefónico, si no tiene ninguno de
+--los anteriores el nombre de la ciudad en la cual trabajan.
+
+SELECT e.EMPLOYEE_ID, e.FIRST_NAME, COALESCE(e.EMAIL, e.PHONE_NUMBER, l.CITY) INFORMACION FROM EMPLOYEES e
+            JOIN DEPARTMENTS d ON e.DEPARTMENT_ID =d.DEPARTMENT_ID
+            JOIN LOCATIONS l ON d.LOCATION_ID = l.LOCATION_ID;
+
+--Listar el código,nombre y rango salarial de los empleados, el rango salarial
+--está dado por:
+--Bajo salario < 5000
+--Medio Salario >=5000 y <= 10000
+--Alto Salario >10000
+
+
+SELECT EMPLOYEE_ID, FIRST_NAME, CASE
+                                    WHEN SALARY<5000 THEN 'Bajo salario'
+                                    WHEN SALARY>=5000 AND SALARY<=10000 THEN 'Medio salario'
+                                    ELSE 'Alto salario'
+                                END AS RANGO_SALARIAL FROM EMPLOYEES;
+
+-- se desea realizar un incremento salarial a los empleados, este incremento se
+-- realizará de la siguiente manera: 10% empleados con un salario menor a 8000
+-- y que no tengan comisión; 8% aquellos con un salario menor a 8000 con
+-- comisión; 6% a todos los empleados con un salario mayor o igual a 8000.
+-- realice el update en una sola sentencia para cumplir este requisito.
+
+SELECT EMPLOYEE_ID, FIRST_NAME, CASE
+                                    WHEN SALARY<8000 AND COMMISSION_PCT IS NULL THEN SALARY + SALARY*0.1
+                                    WHEN SALARY<5000 AND COMMISSION_PCT IS NOT NULL THEN SALARY + SALARY*0.08
+                                    WHEN SALARY>=8000 THEN SALARY + SALARY*0.06
+                                END AS NUEVO_SALARIO FROM EMPLOYEES;
+
+-- Listar por región la cantidad de empleados contratados en cada semestre.
+-- (Use to_char para obtener el mes o el trimestre y según este valor acumular 1
+-- en una columna de primer semestre o en otra columna de segundo trimestre
+
+SELECT * FROM (
+
+    SELECT r.REGION_NAME, e.EMPLOYEE_ID, EXTRACT(MONTH FROM HIRE_DATE) month FROM EMPLOYEES e
+                        JOIN DEPARTMENTS d ON e.DEPARTMENT_ID = d.DEPARTMENT_ID
+                        JOIN LOCATIONS l ON d.LOCATION_ID = l.LOCATION_ID
+                        JOIN COUNTRIES c ON l.COUNTRY_ID = c.COUNTRY_ID
+                        JOIN REGIONS r ON c.REGION_ID = r.REGION_ID
+                        JOIN JOB_HISTORY jh ON e.EMPLOYEE_ID = jh.EMPLOYEE_ID
+
+)PIVOT(
+
+    COUNT(EMPLOYEE_ID) FOR REGION_NAME IN ('Europe', 'Americas', 'Asia', 'Oceania', 'Africa')
+
+);
